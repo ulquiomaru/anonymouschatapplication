@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8.0.172-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ulquiomaru.anonymouschatapplication.Controller">
+
+    <top>
+        <VBox alignment="TOP_CENTER" prefHeight="60.0" prefWidth="800.0" BorderPane.alignment="TOP_CENTER">
+            <MenuBar>
+                <Menu mnemonicParsing="false" text="File">
+                    <MenuItem fx:id="menuGenerateKeys" mnemonicParsing="false" onAction="#clickedGenerateKeys" text="Generate Keys" />
+                    <MenuItem fx:id="menuConnect" disable="true" mnemonicParsing="false" onAction="#connectNetwork" text="Connect to Network" />
+                    <MenuItem fx:id="menuDisconnect" disable="true" mnemonicParsing="false" onAction="#disconnectNetwork" text="Disconnect from Network" />
+                    <MenuItem fx:id="menuExit" mnemonicParsing="false" onAction="#quitApplication" text="Exit" />
+                </Menu>
+                <Menu mnemonicParsing="false" text="Help">
+                    <MenuItem fx:id="menuAbout" mnemonicParsing="false" onAction="#popupAbout" text="About" />
+                </Menu>
+            </MenuBar>
+            <Label alignment="CENTER" prefHeight="525.0" prefWidth="800.0" text="Anonymous Encrypted Chat App" textAlignment="CENTER">
+                <font>
+                    <Font name="System Bold" size="16.0" />
+                </font>
+            </Label>
+        </VBox>
+    </top>
+
+    <center>
+        <TextArea fx:id="txtChat" editable="false" focusTraversable="false" mouseTransparent="true" prefHeight="515.0" prefWidth="0.0" wrapText="true" BorderPane.alignment="CENTER">
+            <BorderPane.margin>
+                <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
+            </BorderPane.margin>
+        </TextArea>
+    </center>
+
+    <right>
+        <VBox prefWidth="193.0" BorderPane.alignment="CENTER_RIGHT">
+            <Label alignment="CENTER" minHeight="59.0" prefWidth="185.0" text="Online Users" textAlignment="CENTER" BorderPane.alignment="CENTER_RIGHT">
+                <font>
+                    <Font name="System Bold" size="13.0" />
+                </font>
+                <VBox.margin>
+                    <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
+                </VBox.margin>
+            </Label>
+            <TextArea fx:id="txtOnlineUsers" editable="false" focusTraversable="false" mouseTransparent="true" prefHeight="5000.0" prefWidth="185.0" BorderPane.alignment="CENTER_RIGHT">
+                <VBox.margin>
+                    <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
+                </VBox.margin>
+            </TextArea>
+        </VBox>
+    </right>
+
+    <bottom>
+        <HBox prefHeight="33.0" prefWidth="800.0" BorderPane.alignment="BOTTOM_CENTER">
+            <TextField fx:id="txtInput" prefHeight="25.0" prefWidth="5000.0">
+                <HBox.margin>
+                    <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
+                </HBox.margin>
+            </TextField>
+            <Button alignment="CENTER" defaultButton="true" minWidth="100.0" mnemonicParsing="false" onAction="#sendMessageClicked" prefHeight="25.0" text="Send Message" textAlignment="CENTER">
+                <HBox.margin>
+                    <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
+                </HBox.margin>
+            </Button>
+        </HBox>
+    </bottom>
+
+</BorderPane>
