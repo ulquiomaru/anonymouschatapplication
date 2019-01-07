@@ -5,18 +5,17 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.function.Consumer;
 
 public class NetworkConnection {
 
     private ConnectionThread connThread = new ConnectionThread();
     private String nickName;
-    private PublicKey publicKey;
+    private String publicKey;
     private PrivateKey privateKey;
     private Consumer<String> onReceiveCallback;
 
-    NetworkConnection(String nickName, PublicKey publicKey, PrivateKey privateKey, Consumer<String> onReceiveCallback) {
+    NetworkConnection(String nickName, String publicKey, PrivateKey privateKey, Consumer<String> onReceiveCallback) {
         this.onReceiveCallback = onReceiveCallback;
         this.nickName = nickName;
         this.publicKey = publicKey;
@@ -41,8 +40,8 @@ public class NetworkConnection {
         send(String.join("|", "MSG", nickName, message));
     }
 
-    private void broadcastIdentity() throws Exception {
-        send(String.join("|", "CON", nickName, publicKey.toString()));
+    void broadcastIdentity() throws Exception {
+        send(String.join("|", "CON", nickName, publicKey));
     }
 
     private void broadcastQuit() throws Exception {

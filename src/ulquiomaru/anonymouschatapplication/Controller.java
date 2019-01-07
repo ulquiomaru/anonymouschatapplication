@@ -52,7 +52,7 @@ public class Controller {
         if (txtInput.getText().length() > 0) {
             String message = txtInput.getText();
             try {
-                Main.connection.send(message);
+                Main.sendMessage(message);
                 txtChat.appendText(nickName + ": " + message + "\n");
                 txtInput.clear();
                 txtInput.requestFocus();
@@ -70,7 +70,6 @@ public class Controller {
 
     @FXML
     private void connectNetwork() {
-        // Trigger a pop up that requests a Nickname from the user
         final Stage popupConnect = new Stage();
 
         popupConnect.initModality(Modality.APPLICATION_MODAL);
@@ -111,7 +110,11 @@ public class Controller {
 
     @FXML
     private void disconnectNetwork() {
-        // TODO trigger a special Quit message broadcast.
+        try {
+            Main.disconnectFromNetwork();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         nickName = null;
         txtInput.setDisable(true);
         menuDisconnect.setDisable(true);

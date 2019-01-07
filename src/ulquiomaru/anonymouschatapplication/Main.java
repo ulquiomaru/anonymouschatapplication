@@ -7,22 +7,24 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.TextArea;
 import javafx.stage.Stage;
-import org.jetbrains.annotations.NotNull;
 
 import javax.crypto.Cipher;
-import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.HashMap;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Main extends Application {
 
-    static NetworkConnection connection;
+    private static HashMap<String, PublicKey> hashMap = new HashMap<>();
+    private static NetworkConnection connection;
     private static TextArea txtChat;
     private static TextArea txtOnlineUsers;
     private static String nickName;
-    private static PublicKey publicKey;
+    private static String publicKey;
     private static PrivateKey privateKey;
 
 
@@ -53,7 +55,8 @@ public class Main extends Application {
     static void generateKeys() {
         try {
             KeyPair keyPair = buildKeyPair();
-            publicKey = keyPair.getPublic();
+//            Base64.getEncoder().encodeToString(keyPair.getPublic());
+            publicKey = keyPair.getPublic().toString();
             privateKey = keyPair.getPrivate();
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
@@ -67,18 +70,22 @@ public class Main extends Application {
         return keyPairGenerator.genKeyPair();
     }
 
-    public static byte[] encrypt(PrivateKey privateKey, @NotNull String plainText) throws Exception {
+    public static String encrypt(PrivateKey privateKey, String plainText) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE, privateKey);
 
-        return cipher.doFinal(plainText.getBytes());
+        byte[] cipherText = cipher.doFinal(plainText.getBytes(UTF_8));
+
+        return Base64.getEncoder().encodeToString(cipherText);
     }
 
-    public static byte[] decrypt(PublicKey publicKey, byte [] cipherText) throws Exception {
+    public static String decrypt(PublicKey publicKey, String cipherText) throws Exception {
+        byte[] bytes = Base64.getDecoder().decode(cipherText);
+
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.DECRYPT_MODE, publicKey);
 
-        return cipher.doFinal(cipherText);
+        return new String(cipher.doFinal(bytes), UTF_8);
     }
 
 //    @Override
@@ -97,33 +104,45 @@ public class Main extends Application {
         connection.startConnection();
     }
 
+    static void disconnectFromNetwork() throws Exception {
+        connection.closeConnection();
+    }
+
+    static void sendMessage(String message) throws Exception {
+        connection.broadcastMessage(encrypt(privateKey, message));
+    }
+
     private static void onMessageReceived(String data) {
         // TODO MSG/CON/BYE filtering
-        String[] split = data.split("|", 1);
-        switch (split[0]) {
+        String[] split = data.split("[|]", 1);
+        String tag = split[0];
+        String sender = split[1];
+        switch (tag) {
             case "MSG":
-                String sender = split[1];
                 String cipherText = split[2];
-                PublicKey userKey = null;
+                PublicKey userKey = hashMap.get(sender);
                 try {
-                    String plainText = new String(decrypt(userKey, cipherText.getBytes()), StandardCharsets.UTF_8); // TODO sender's public key ile decrypt etmeli
+                    String plainText = decrypt(userKey, cipherText);
+                    String message = sender + ": " + plainText + "\n";
+                    Platform.runLater(() -> txtChat.appendText(message));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
                 break;
-
             case "CON":
-
+                String str_senderPublicKey = split[2];
+                PublicKey senderPublicKey = stringToPublicKey(str_senderPublicKey);
+                hashMap.put(sender, senderPublicKey);
+                // TODO update online users
                 break;
-
             case "BYE":
-
+                hashMap.remove(sender);
+                // TODO update online users
                 break;
-
             default:
                 break;
         }
-        Platform.runLater(() -> txtChat.appendText(data.toString() + "\n"));
+
     }
 
     private static PublicKey stringToPublicKey(String stringKey) {
