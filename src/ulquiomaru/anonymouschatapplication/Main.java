@@ -1,11 +1,9 @@
 package ulquiomaru.anonymouschatapplication;
 
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.TextArea;
 import javafx.stage.Stage;
 
 import javax.crypto.Cipher;
@@ -19,11 +17,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Main extends Application {
 
+    private static Controller controller;
+
     private static HashMap<String, PublicKey> hashMap = new HashMap<>();
     private static NetworkConnection connection;
-    private static TextArea txtChat;
-    private static TextArea txtOnlineUsers;
-    private static String nickName;
+//    private static TextArea txtChat;
+//    private static TextArea txtOnlineUsers;
+//    private static String nickName;
     private static String publicKey;
     private static PrivateKey privateKey;
 
@@ -33,10 +33,10 @@ public class Main extends Application {
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("application.fxml"));
         Parent root = loader.load();
-        Controller controller = loader.getController();
+        controller = loader.getController();
 
-        txtChat = controller.txtChat;
-        txtOnlineUsers = controller.txtOnlineUsers;
+//        txtChat = controller.txtChat;
+//        txtOnlineUsers = controller.txtOnlineUsers;
 
         primaryStage.setTitle("Chat App");
         primaryStage.setScene(new Scene(root, 800, 600));
@@ -48,9 +48,9 @@ public class Main extends Application {
         launch(args);
     }
 
-    static void setNickName(String nickname) {
-        nickName = nickname;
-    }
+//    static void setNickName(String nickname) {
+//        nickName = nickname;
+//    }
 
     static void generateKeys() {
         try {
@@ -70,7 +70,7 @@ public class Main extends Application {
         return keyPairGenerator.genKeyPair();
     }
 
-    public static String encrypt(PrivateKey privateKey, String plainText) throws Exception {
+    private static String encrypt(PrivateKey privateKey, String plainText) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE, privateKey);
 
@@ -79,7 +79,7 @@ public class Main extends Application {
         return Base64.getEncoder().encodeToString(cipherText);
     }
 
-    public static String decrypt(PublicKey publicKey, String cipherText) throws Exception {
+    private static String decrypt(PublicKey publicKey, String cipherText) throws Exception {
         byte[] bytes = Base64.getDecoder().decode(cipherText);
 
         Cipher cipher = Cipher.getInstance("RSA");
@@ -95,7 +95,6 @@ public class Main extends Application {
 
     @Override
     public void stop() throws Exception {
-        // TODO trigger a special Quit message broadcast.
         connection.closeConnection();
     }
 
@@ -113,8 +112,7 @@ public class Main extends Application {
     }
 
     private static void onMessageReceived(String data) {
-        // TODO MSG/CON/BYE filtering
-        String[] split = data.split("[|]", 1);
+        String[] split = data.split("[|]");
         String tag = split[0];
         String sender = split[1];
         switch (tag) {
@@ -123,8 +121,9 @@ public class Main extends Application {
                 PublicKey userKey = hashMap.get(sender);
                 try {
                     String plainText = decrypt(userKey, cipherText);
-                    String message = sender + ": " + plainText + "\n";
-                    Platform.runLater(() -> txtChat.appendText(message));
+                    String message = sender + ": " + plainText;
+                    controller.appendChat(message);
+//                    Platform.runLater(() -> txtChat.appendText(message));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -132,14 +131,21 @@ public class Main extends Application {
             case "CON":
                 String str_senderPublicKey = split[2];
                 PublicKey senderPublicKey = stringToPublicKey(str_senderPublicKey);
-                hashMap.put(sender, senderPublicKey);
-                // TODO update online users
+                if (hashMap.put(sender, senderPublicKey) == null) {
+                    try {
+                        connection.broadcastIdentity();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                controller.updateOnlineUsers(hashMap.keySet());
                 break;
             case "BYE":
                 hashMap.remove(sender);
-                // TODO update online users
+                controller.updateOnlineUsers(hashMap.keySet());
                 break;
             default:
+                controller.appendChat(data); // TODO remove - present to debug
                 break;
         }
 

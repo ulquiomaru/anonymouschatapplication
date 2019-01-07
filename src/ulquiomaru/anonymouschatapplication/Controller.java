@@ -10,6 +10,8 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
+import java.util.Set;
+
 public class Controller {
 
     private String nickName;
@@ -38,6 +40,9 @@ public class Controller {
     @FXML
     MenuItem menuAbout;
 
+    @FXML
+    Button btnSendMessage;
+
     public Controller() { }
 
     @FXML
@@ -45,6 +50,7 @@ public class Controller {
         menuConnect.setDisable(true);
         menuDisconnect.setDisable(true);
         txtInput.setDisable(true);
+        btnSendMessage.setDisable(true);
     }
 
     @FXML
@@ -66,6 +72,7 @@ public class Controller {
     private void clickedGenerateKeys() {
         Main.generateKeys();
         menuConnect.setDisable(false);
+        txtChat.appendText("*** Generated RSA keys.\n");
     }
 
     @FXML
@@ -88,6 +95,7 @@ public class Controller {
         btnClosePopup.setOnAction(event -> {
             if (textField.getText().length() > 0) {
                 nickName = textField.getText();
+                txtChat.appendText("*** Connected to the network.\n");
                 Main.connectToNetwork(nickName);
                 popupConnect.close();
             }
@@ -102,7 +110,9 @@ public class Controller {
         popupConnect.setScene(scenePopup);
         popupConnect.showAndWait();
 
+        btnSendMessage.setDisable(false);
         txtInput.setDisable(false);
+        txtInput.requestFocus();
         menuDisconnect.setDisable(false);
         menuConnect.setDisable(true);
         menuGenerateKeys.setDisable(true);
@@ -115,7 +125,10 @@ public class Controller {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        txtChat.appendText("*** Disconnected from the network.\n");
+        txtOnlineUsers.clear();
         nickName = null;
+        btnSendMessage.setDisable(true);
         txtInput.setDisable(true);
         menuDisconnect.setDisable(true);
         menuConnect.setDisable(false);
@@ -152,6 +165,17 @@ public class Controller {
 
         popupAbout.setScene(scenePopup);
         popupAbout.showAndWait();
+    }
+
+    void updateOnlineUsers(Set<String> users) {
+        txtOnlineUsers.setText(nickName + " (me)\n\n");
+        for (String user : users) {
+            txtOnlineUsers.appendText(user + "\n");
+        }
+    }
+
+    void appendChat(String message) {
+        txtChat.appendText(message + "\n");
     }
 
 }
