@@ -131,6 +131,7 @@ public class Main extends Application {
             case "CON":
                 String str_senderPublicKey = split[2];
                 PublicKey senderPublicKey = stringToPublicKey(str_senderPublicKey);
+                controller.appendChat("CON   Sender: " + sender + " Key: " + senderPublicKey); // TODO remove - present to debug
                 if (hashMap.put(sender, senderPublicKey) == null) {
                     try {
                         connection.broadcastIdentity();
@@ -142,6 +143,7 @@ public class Main extends Application {
                 break;
             case "BYE":
                 hashMap.remove(sender);
+                controller.appendChat("BYE   Sender: " + sender); // TODO remove - present to debug
                 controller.updateOnlineUsers(hashMap.keySet());
                 break;
             default:

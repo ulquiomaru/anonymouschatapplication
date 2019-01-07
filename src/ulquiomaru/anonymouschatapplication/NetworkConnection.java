@@ -2,6 +2,7 @@ package ulquiomaru.anonymouschatapplication;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.util.function.Consumer;
@@ -32,8 +33,13 @@ class NetworkConnection {
     }
 
     private void send(String data) throws Exception {
-        Runtime.getRuntime().exec("./sender " + data);
+//        Runtime.getRuntime().exec("./sender " + data);
 //        Runtime.getRuntime().exec("./sender " + "DBG|" + data); // DEBUG
+        DatagramSocket clientSocket = new DatagramSocket();
+        byte[] sendData = data.getBytes(StandardCharsets.UTF_8);
+        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("127.0.0.1"), 7777);
+        clientSocket.send(sendPacket);
+        clientSocket.close();
     }
 
     void broadcastMessage(String message) throws Exception {
@@ -53,7 +59,10 @@ class NetworkConnection {
 
         @Override
         public void run() {
-            try (DatagramSocket socket = new DatagramSocket(7777)) { // new DatagramSocket(7777, InetAddress.getByName("0.0.0.0"));
+//            try (DatagramSocket socket = new DatagramSocket(7777)) {
+//            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("0.0.0.0"))) {
+//            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("10.0.2.15"))) {
+            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("127.0.0.1"))) {
                 this.socket = socket;
                 DatagramPacket packet = new DatagramPacket(new byte[2048], 2048);
                 broadcastIdentity();
