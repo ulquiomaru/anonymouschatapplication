@@ -12,6 +12,8 @@ import javafx.stage.Stage;
 
 public class Controller {
 
+    private String nickName;
+
     @FXML
     TextArea txtChat;
 
@@ -42,23 +44,21 @@ public class Controller {
     private void initialize() {
         menuConnect.setDisable(true);
         menuDisconnect.setDisable(true);
+        txtInput.setDisable(true);
     }
 
     @FXML
     private void sendMessageClicked() {
         if (txtInput.getText().length() > 0) {
-            String message = "UserName: ";
-            message += txtInput.getText();
-
+            String message = txtInput.getText();
             try {
-//                Main.connection.encryptMessage(message, 1);
-                txtChat.appendText(message + "\n");
+                Main.connection.send(message);
+                txtChat.appendText(nickName + ": " + message + "\n");
                 txtInput.clear();
                 txtInput.requestFocus();
             } catch (Exception e) {
-                txtChat.appendText("Failed to send message\n");
+                txtChat.appendText("*** ERROR *** : Failed to send message\n");
             }
-//            Main.connection.send(message);
         }
     }
 
@@ -70,10 +70,40 @@ public class Controller {
 
     @FXML
     private void connectNetwork() {
-        // TODO trigger a pop up that request a Nickname from the user
-        // TODO connect to the network
-        // TODO consecutively broadcasts the new user’s identity (nickname and public key) to the local subnet.
+        // Trigger a pop up that requests a Nickname from the user
+        final Stage popupConnect = new Stage();
 
+        popupConnect.initModality(Modality.APPLICATION_MODAL);
+        popupConnect.setTitle("Connect");
+
+        final Label label = new Label("Enter your nickname below:\n");
+        label.setTextAlignment(TextAlignment.CENTER);
+        label.setAlignment(Pos.CENTER);
+
+        final TextField textField = new TextField();
+        textField.setPrefWidth(150);
+        textField.setMaxWidth(150);
+
+        final Button btnClosePopup = new Button("OK");
+        btnClosePopup.setDefaultButton(true);
+        btnClosePopup.setOnAction(event -> {
+            if (textField.getText().length() > 0) {
+                nickName = textField.getText();
+                Main.connectToNetwork(nickName);
+                popupConnect.close();
+            }
+        });
+
+        VBox layout = new VBox(20);
+        layout.getChildren().addAll(label, textField, btnClosePopup);
+        layout.setAlignment(Pos.CENTER);
+
+        Scene scenePopup = new Scene(layout, 250, 200);
+
+        popupConnect.setScene(scenePopup);
+        popupConnect.showAndWait();
+
+        txtInput.setDisable(false);
         menuDisconnect.setDisable(false);
         menuConnect.setDisable(true);
         menuGenerateKeys.setDisable(true);
@@ -82,7 +112,8 @@ public class Controller {
     @FXML
     private void disconnectNetwork() {
         // TODO trigger a special Quit message broadcast.
-
+        nickName = null;
+        txtInput.setDisable(true);
         menuDisconnect.setDisable(true);
         menuConnect.setDisable(false);
         menuGenerateKeys.setDisable(false);
@@ -107,6 +138,7 @@ public class Controller {
         lblAbout.setAlignment(Pos.CENTER);
 
         final Button btnClosePopup = new Button("Close");
+        btnClosePopup.setDefaultButton(true);
         btnClosePopup.setOnAction(e -> popupAbout.close());
 
         VBox layout = new VBox(40);
