@@ -96,6 +96,7 @@ public class Controller {
             if (textField.getText().length() > 0) {
                 nickName = textField.getText();
                 txtChat.appendText("*** Connected to the network.\n");
+                txtOnlineUsers.setText(nickName + " (me)\n\n");
                 Main.connectToNetwork(nickName);
                 popupConnect.close();
             }

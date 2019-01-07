@@ -32,8 +32,8 @@ class NetworkConnection {
     }
 
     private void send(String data) throws Exception {
-//        Runtime.getRuntime().exec("./sender " + data);
-        Runtime.getRuntime().exec("./sender " + "DBG|" + data); // DEBUG
+        Runtime.getRuntime().exec("./sender " + data);
+//        Runtime.getRuntime().exec("./sender " + "DBG|" + data); // DEBUG
     }
 
     void broadcastMessage(String message) throws Exception {
