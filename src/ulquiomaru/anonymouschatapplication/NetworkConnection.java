@@ -37,13 +37,10 @@ class NetworkConnection {
 //        Runtime.getRuntime().exec("./sender " + data);
 //        Runtime.getRuntime().exec("./sender " + "DBG|" + data); // DEBUG
         DatagramSocket clientSocket = new DatagramSocket();
-
         byte[] sendData = data.getBytes(UTF_8);
-//        byte[] sendData = Base64.getEncoder().encode(data.getBytes());
-//        byte[] sendData = data.getBytes();
-//        byte[] sendData = Base64.getDecoder().decode(data);
-
-        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("127.0.0.1"), 7777);
+//        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("127.0.0.1"), 7777);
+        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("192.168.56.255"), 7777);
+        clientSocket.setBroadcast(true);
         clientSocket.send(sendPacket);
         clientSocket.close();
     }
@@ -54,7 +51,6 @@ class NetworkConnection {
 
     void broadcastIdentity() throws Exception {
         send(String.join("|", "CON", nickName, publicKey));
-//        sendHello(String.join("|", "CON", nickName, ""));
     }
 
     private void broadcastQuit() throws Exception {
@@ -71,17 +67,11 @@ class NetworkConnection {
 //            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("10.0.2.15"))) {0
 //            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("127.0.0.1"))) {
                 this.socket = socket;
-                DatagramPacket packet = new DatagramPacket(new byte[2048], 2048);
                 broadcastIdentity();
                 while (true) {
+                    DatagramPacket packet = new DatagramPacket(new byte[2048], 2048);
                     socket.receive(packet);
-                    byte[] packetData = packet.getData();
-
-//                    String data = new String(packetData);
-//                    String data = Base64.getEncoder().encodeToString(packetData);
-                    String data = new String(packetData, UTF_8);
-
-                    onReceiveCallback.accept(data);
+                    onReceiveCallback.accept(new String(packet.getData(), UTF_8));
                 }
             } catch (Exception e) {
                 e.printStackTrace();

@@ -18,12 +18,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class Main extends Application {
 
     private static Controller controller;
-
     private static HashMap<String, PublicKey> hashMap = new HashMap<>();
     private static NetworkConnection connection;
-//    private static TextArea txtChat;
-//    private static TextArea txtOnlineUsers;
-//    private static String nickName;
+    private static String nickName;
     private static String publicKey;
     private static PrivateKey privateKey;
 
@@ -52,15 +49,14 @@ public class Main extends Application {
 //        nickName = nickname;
 //    }
 
+    private static synchronized HashMap<String, PublicKey> getHashMap() {
+        return hashMap;
+    }
+
     static void generateKeys() {
         try {
             KeyPair keyPair = buildKeyPair();
             privateKey = keyPair.getPrivate();
-
-//            publicKey = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
-//            publicKey = keyPair.getPublic().toString();
-//            publicKey = new String(Base64.getEncoder().encode(keyPair.getPublic().getEncoded()), UTF_8);
-//            publicKey = new String(keyPair.getPublic().getEncoded(), UTF_8);
             publicKey = Base64.getMimeEncoder().encodeToString(keyPair.getPublic().getEncoded());
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
@@ -70,11 +66,7 @@ public class Main extends Application {
     private static PublicKey stringToPublicKey(String stringKey) {
         PublicKey receivedPublicKey = null;
         try {
-//            byte[] keyBytes = stringKey.getBytes(UTF_8);
-//            byte[] keyBytes = Base64.getDecoder().decode(stringKey.getBytes(UTF_8));
-//            byte[] keyBytes = Base64.getDecoder().decode(stringKey);
             byte[] keyBytes = Base64.getMimeDecoder().decode(stringKey);
-
             X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             receivedPublicKey = keyFactory.generatePublic(keySpec);
@@ -119,59 +111,63 @@ public class Main extends Application {
         connection.closeConnection();
     }
 
-    static void connectToNetwork(String nickName) {
-        connection = new NetworkConnection(nickName, publicKey, privateKey, Main::onMessageReceived);
+    static void connectToNetwork(String nickname) {
+        nickName = nickname;
+        connection = new NetworkConnection(nickname, publicKey, privateKey, Main::onMessageReceived);
         connection.startConnection();
     }
 
     static void disconnectFromNetwork() throws Exception {
+        getHashMap().clear();
         connection.closeConnection();
     }
 
     static void sendMessage(String message) throws Exception {
         connection.broadcastMessage(encrypt(privateKey, message));
+//        connection.broadcastMessage(message);
     }
 
     private static void onMessageReceived(String data) {
         String[] split = data.split("[|]");
         String tag = split[0];
         String sender = split[1];
-        switch (tag) {
-            case "MSG":
-                String cipherText = split[2];
-                PublicKey userKey = hashMap.get(sender);
-                try {
+        if (!sender.equals(nickName)) { // Check self-broadcast
+            switch (tag) {
+                case "MSG":
+                    String cipherText = split[2];
+                    PublicKey userKey = getHashMap().get(sender);
+                    try {
                     String plainText = decrypt(userKey, cipherText);
                     String message = sender + ": " + plainText;
-                    controller.appendChat(message);
-//                    Platform.runLater(() -> txtChat.appendText(message));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                break;
-            case "CON":
-                String str_senderPublicKey = split[2];
-                PublicKey senderPublicKey = stringToPublicKey(str_senderPublicKey);
-                controller.appendChat("CON   Sender: " + sender + " Key: " + senderPublicKey); // TODO remove - present to debug
-                if (hashMap.put(sender, senderPublicKey) == null) {
-                    try {
-                        connection.broadcastIdentity();
+//                        String message = sender + ": " + cipherText;
+                        controller.appendChat(message);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                }
-                controller.updateOnlineUsers(hashMap.keySet());
-                break;
-            case "BYE":
-                hashMap.remove(sender);
-                controller.appendChat("BYE   Sender: " + sender); // TODO remove - present to debug
-                controller.updateOnlineUsers(hashMap.keySet());
-                break;
-            default:
-                controller.appendChat(data); // TODO remove - present to debug
-                break;
+                    break;
+                case "CON":
+                    String str_senderPublicKey = split[2];
+                    PublicKey senderPublicKey = stringToPublicKey(str_senderPublicKey);
+                    controller.appendChat("CON " + sender); // TODO remove - present to debug
+                    if (getHashMap().put(sender, senderPublicKey) == null) {
+                        try {
+                            connection.broadcastIdentity();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    controller.updateOnlineUsers(getHashMap().keySet());
+                    break;
+                case "BYE":
+                    getHashMap().remove(sender);
+                    controller.appendChat("BYE " + sender); // TODO remove - present to debug
+                    controller.updateOnlineUsers(getHashMap().keySet());
+                    break;
+                default:
+                    controller.appendChat(data); // TODO remove - present to debug
+                    break;
+            }
         }
-
     }
 
 }

@@ -14,7 +14,8 @@ import java.util.Set;
 
 public class Controller {
 
-    private String nickName;
+    private String nickName = null;
+    private NetworkConnection connection = null;
 
     @FXML
     TextArea txtChat;
@@ -169,9 +170,10 @@ public class Controller {
     }
 
     void updateOnlineUsers(Set<String> users) {
-        txtOnlineUsers.setText(nickName + " (me)\n\n");
-        for (String user : users) {
-            txtOnlineUsers.appendText(user + "\n");
+        if (nickName == null) txtOnlineUsers.clear();
+        else {
+            txtOnlineUsers.setText(nickName + " (me)\n\n");
+            for (String user : users) txtOnlineUsers.appendText(user + "\n");
         }
     }
 
