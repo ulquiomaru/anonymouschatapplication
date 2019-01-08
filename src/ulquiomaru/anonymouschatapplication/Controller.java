@@ -10,12 +10,20 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.util.Base64;
 import java.util.Set;
 
 public class Controller {
 
-    private String nickName = null;
-    private NetworkConnection connection = null;
+    private static NetworkConnection connection = null;
+    private static String nickName = null;
+    private static String publicKey;
+    private static PrivateKey privateKey;
+
 
     @FXML
     TextArea txtChat;
@@ -59,7 +67,7 @@ public class Controller {
         if (txtInput.getText().length() > 0) {
             String message = txtInput.getText();
             try {
-                Main.sendMessage(message);
+                sendMessage(message);
                 txtChat.appendText(nickName + ": " + message + "\n");
                 txtInput.clear();
                 txtInput.requestFocus();
@@ -71,7 +79,7 @@ public class Controller {
 
     @FXML
     private void clickedGenerateKeys() {
-        Main.generateKeys();
+        generateKeys();
         menuConnect.setDisable(false);
         txtChat.appendText("*** Generated RSA keys.\n");
     }
@@ -98,7 +106,7 @@ public class Controller {
                 nickName = textField.getText();
                 txtChat.appendText("*** Connected to the network.\n");
                 txtOnlineUsers.setText(nickName + " (me)\n\n");
-                Main.connectToNetwork(nickName);
+                connectToNetwork();
                 popupConnect.close();
             }
         });
@@ -123,7 +131,7 @@ public class Controller {
     @FXML
     private void disconnectNetwork() {
         try {
-            Main.disconnectFromNetwork();
+            disconnectFromNetwork();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -139,7 +147,11 @@ public class Controller {
 
     @FXML
     private void quitApplication() {
-        disconnectNetwork();
+        try {
+            disconnectFromNetwork();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         Platform.exit();
         System.exit(0);
     }
@@ -179,6 +191,36 @@ public class Controller {
 
     void appendChat(String message) {
         txtChat.appendText(message + "\n");
+    }
+
+    private void generateKeys() {
+        try {
+            KeyPair keyPair = buildKeyPair();
+            privateKey = keyPair.getPrivate();
+            publicKey = Base64.getMimeEncoder().encodeToString(keyPair.getPublic().getEncoded());
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static KeyPair buildKeyPair() throws NoSuchAlgorithmException {
+        final int keySize = 2048;
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(keySize);
+        return keyPairGenerator.genKeyPair();
+    }
+
+    private void connectToNetwork() {
+        connection = new NetworkConnection(nickName, publicKey, privateKey, false, this);
+        connection.startConnection();
+    }
+
+    private void disconnectFromNetwork() throws Exception {
+        connection.closeConnection();
+    }
+
+    private void sendMessage(String message) throws Exception {
+        connection.encryptMessageBroadcast(message);
     }
 
 }

@@ -60,7 +60,7 @@
                     <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
                 </HBox.margin>
             </TextField>
-            <Button fx:id="btnSendMessage" alignment="CENTER" defaultButton="true" minWidth="100.0" mnemonicParsing="false" onAction="#sendMessageClicked" prefHeight="25.0" text="Send Message" textAlignment="CENTER">
+            <Button fx:id="btnSendMessage" alignment="CENTER" defaultButton="true" minWidth="185.0" mnemonicParsing="false" onAction="#sendMessageClicked" prefHeight="25.0" text="Send Message" textAlignment="CENTER">
                 <HBox.margin>
                     <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
                 </HBox.margin>

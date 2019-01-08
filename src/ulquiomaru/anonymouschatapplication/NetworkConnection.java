@@ -1,26 +1,38 @@
 package ulquiomaru.anonymouschatapplication;
 
+import javafx.application.Platform;
+
+import javax.crypto.Cipher;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.util.function.Consumer;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
+import java.util.HashMap;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NetworkConnection {
 
+    private Controller controller;
     private ConnectionThread connThread = new ConnectionThread();
     private String nickName;
     private String publicKey;
     private PrivateKey privateKey;
-    private Consumer<String> onReceiveCallback;
+    private boolean isGateway;
+    private final static String[] gateways = {"192.168.56.1", "192.168.57.1", "192.168.58.1"};
 
-    NetworkConnection(String nickName, String publicKey, PrivateKey privateKey, Consumer<String> onReceiveCallback) {
-        this.onReceiveCallback = onReceiveCallback;
+    NetworkConnection(String nickName, String publicKey, PrivateKey privateKey, boolean isGateway, Controller controller) {
+        this.controller = controller;
         this.nickName = nickName;
         this.publicKey = publicKey;
         this.privateKey = privateKey;
+        this.isGateway = isGateway;
         connThread.setDaemon(true);
     }
 
@@ -33,23 +45,35 @@ class NetworkConnection {
         connThread.socket.close();
     }
 
+    private void forwardPacket(DatagramPacket packet) throws Exception {
+        for (String gateway : gateways) {
+            DatagramSocket clientSocket = new DatagramSocket();
+            packet.setAddress(InetAddress.getByName(gateway));
+            clientSocket.send(packet);
+            clientSocket.close();
+        }
+    }
+
     private void send(String data) throws Exception {
 //        Runtime.getRuntime().exec("./sender " + data);
-//        Runtime.getRuntime().exec("./sender " + "DBG|" + data); // DEBUG
+
         DatagramSocket clientSocket = new DatagramSocket();
         byte[] sendData = data.getBytes(UTF_8);
-//        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("127.0.0.1"), 7777);
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("192.168.56.255"), 7777);
         clientSocket.setBroadcast(true);
         clientSocket.send(sendPacket);
         clientSocket.close();
     }
 
-    void broadcastMessage(String message) throws Exception {
+    void encryptMessageBroadcast(String message) throws Exception {
+        broadcastMessage(encrypt(privateKey, message));
+    }
+
+    private void broadcastMessage(String message) throws Exception {
         send(String.join("|", "MSG", nickName, message));
     }
 
-    void broadcastIdentity() throws Exception {
+    private void broadcastIdentity() throws Exception {
         send(String.join("|", "CON", nickName, publicKey));
     }
 
@@ -57,26 +81,93 @@ class NetworkConnection {
         send(String.join("|", "BYE", nickName));
     }
 
+    private static String encrypt(PrivateKey privateKey, String plainText) throws Exception {
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.ENCRYPT_MODE, privateKey);
+        byte[] cipherText = cipher.doFinal(plainText.getBytes(UTF_8));
+        return Base64.getMimeEncoder().encodeToString(cipherText);
+    }
+
+    private static String decrypt(PublicKey publicKey, String cipherText) throws Exception {
+        byte[] bytes = Base64.getMimeDecoder().decode(cipherText);
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.DECRYPT_MODE, publicKey);
+        return new String(cipher.doFinal(bytes), UTF_8);
+    }
+
+    private static PublicKey stringToPublicKey(String stringKey) {
+        PublicKey receivedPublicKey = null;
+        try {
+            byte[] keyBytes = Base64.getMimeDecoder().decode(stringKey);
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            receivedPublicKey = keyFactory.generatePublic(keySpec);
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return receivedPublicKey;
+    }
+
     private class ConnectionThread extends Thread {
         private DatagramSocket socket;
+        private HashMap<String, PublicKey> hashMap = new HashMap<>();
 
         @Override
         public void run() {
-            try (DatagramSocket socket = new DatagramSocket(7777)) {
-//            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("0.0.0.0"))) {
-//            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("10.0.2.15"))) {0
-//            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("127.0.0.1"))) {
+            try (DatagramSocket socket = new DatagramSocket(7777)) { // new DatagramSocket(7777, InetAddress.getByName("0.0.0.0"))
                 this.socket = socket;
                 broadcastIdentity();
                 while (true) {
                     DatagramPacket packet = new DatagramPacket(new byte[2048], 2048);
                     socket.receive(packet);
-                    onReceiveCallback.accept(new String(packet.getData(), UTF_8));
+                    if (isGateway) forwardPacket(packet);
+                    String data = new String(packet.getData(), UTF_8);
+                    onMessageReceived(data, hashMap);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
+
+    private void onMessageReceived(String data, HashMap<String, PublicKey> hashMap) {
+        String[] split = data.split("[|]");
+        String tag = split[0];
+        String sender = split[1].trim();
+        if (!sender.equals(nickName)) { // Check self-broadcast
+            switch (tag) {
+                case "MSG":
+                    String cipherText = split[2];
+                    PublicKey userKey = hashMap.get(sender);
+                    try {
+                        String plainText = decrypt(userKey, cipherText);
+                        String message = sender + ": " + plainText;
+                        Platform.runLater(() -> controller.appendChat(message));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    break;
+                case "CON":
+                    String str_senderPublicKey = split[2];
+                    PublicKey senderPublicKey = stringToPublicKey(str_senderPublicKey);
+                    if (hashMap.put(sender, senderPublicKey) == null) { // Broadcast HELLO back
+                        try {
+                            broadcastIdentity();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    Platform.runLater(() -> controller.updateOnlineUsers(hashMap.keySet()));
+                    break;
+                case "BYE":
+                    hashMap.remove(sender);
+                    Platform.runLater(() -> controller.updateOnlineUsers(hashMap.keySet()));
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
 
 }
