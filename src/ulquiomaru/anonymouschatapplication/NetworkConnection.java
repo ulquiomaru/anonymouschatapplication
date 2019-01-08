@@ -3,9 +3,11 @@ package ulquiomaru.anonymouschatapplication;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
+import java.util.Base64;
 import java.util.function.Consumer;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NetworkConnection {
 
@@ -36,7 +38,33 @@ class NetworkConnection {
 //        Runtime.getRuntime().exec("./sender " + data);
 //        Runtime.getRuntime().exec("./sender " + "DBG|" + data); // DEBUG
         DatagramSocket clientSocket = new DatagramSocket();
-        byte[] sendData = data.getBytes(StandardCharsets.UTF_8);
+
+        byte[] sendData = data.getBytes(UTF_8);
+//        byte[] sendData = Base64.getEncoder().encode(data.getBytes());
+//        byte[] sendData = data.getBytes();
+//        byte[] sendData = Base64.getDecoder().decode(data);
+
+        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("127.0.0.1"), 7777);
+        clientSocket.send(sendPacket);
+        clientSocket.close();
+    }
+
+    private void sendHello(String data) throws Exception {
+//        Runtime.getRuntime().exec("./sender " + data);
+//        Runtime.getRuntime().exec("./sender " + "DBG|" + data); // DEBUG
+        DatagramSocket clientSocket = new DatagramSocket();
+
+//        byte[] sendData = data.getBytes(StandardCharsets.UTF_8);
+//        byte[] sendData = Base64.getEncoder().encode(data.getBytes());
+//        byte[] sendData = data.getBytes();
+        byte[] dataBytes = Base64.getEncoder().encode(data.getBytes(UTF_8));
+//        byte[] dataBytes = Base64.getDecoder().decode(data);
+        byte[] keyBytes = Base64.getDecoder().decode(publicKey);
+
+        byte[] sendData = new byte[dataBytes.length + keyBytes.length];
+        System.arraycopy(dataBytes, 0, sendData, 0, dataBytes.length);
+        System.arraycopy(keyBytes, 0, sendData, dataBytes.length, keyBytes.length);
+
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("127.0.0.1"), 7777);
         clientSocket.send(sendPacket);
         clientSocket.close();
@@ -48,6 +76,7 @@ class NetworkConnection {
 
     void broadcastIdentity() throws Exception {
         send(String.join("|", "CON", nickName, publicKey));
+//        sendHello(String.join("|", "CON", nickName, ""));
     }
 
     private void broadcastQuit() throws Exception {
@@ -59,19 +88,24 @@ class NetworkConnection {
 
         @Override
         public void run() {
-//            try (DatagramSocket socket = new DatagramSocket(7777)) {
+            try (DatagramSocket socket = new DatagramSocket(7777)) {
 //            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("0.0.0.0"))) {
-//            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("10.0.2.15"))) {
-            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("127.0.0.1"))) {
+//            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("10.0.2.15"))) {0
+//            try (DatagramSocket socket = new DatagramSocket(7777, InetAddress.getByName("127.0.0.1"))) {
                 this.socket = socket;
                 DatagramPacket packet = new DatagramPacket(new byte[2048], 2048);
                 broadcastIdentity();
                 while (true) {
                     socket.receive(packet);
-                    onReceiveCallback.accept(new String(packet.getData(), StandardCharsets.UTF_8));
+                    byte[] packetData = packet.getData();
+
+//                    String data = new String(packetData);
+//                    String data = Base64.getEncoder().encodeToString(packetData);
+                    String data = new String(packetData, UTF_8);
+
+                    onReceiveCallback.accept(data);
                 }
             } catch (Exception e) {
-                onReceiveCallback.accept("Connection closed"); // TODO remove this debug line
                 e.printStackTrace();
             }
         }

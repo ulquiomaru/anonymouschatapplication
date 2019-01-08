@@ -55,12 +55,33 @@ public class Main extends Application {
     static void generateKeys() {
         try {
             KeyPair keyPair = buildKeyPair();
-//            Base64.getEncoder().encodeToString(keyPair.getPublic());
-            publicKey = keyPair.getPublic().toString();
             privateKey = keyPair.getPrivate();
+
+//            publicKey = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
+//            publicKey = keyPair.getPublic().toString();
+//            publicKey = new String(Base64.getEncoder().encode(keyPair.getPublic().getEncoded()), UTF_8);
+//            publicKey = new String(keyPair.getPublic().getEncoded(), UTF_8);
+            publicKey = Base64.getMimeEncoder().encodeToString(keyPair.getPublic().getEncoded());
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
+    }
+
+    private static PublicKey stringToPublicKey(String stringKey) {
+        PublicKey receivedPublicKey = null;
+        try {
+//            byte[] keyBytes = stringKey.getBytes(UTF_8);
+//            byte[] keyBytes = Base64.getDecoder().decode(stringKey.getBytes(UTF_8));
+//            byte[] keyBytes = Base64.getDecoder().decode(stringKey);
+            byte[] keyBytes = Base64.getMimeDecoder().decode(stringKey);
+
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            receivedPublicKey = keyFactory.generatePublic(keySpec);
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return receivedPublicKey;
     }
 
     private static KeyPair buildKeyPair() throws NoSuchAlgorithmException {
@@ -153,14 +174,4 @@ public class Main extends Application {
 
     }
 
-    private static PublicKey stringToPublicKey(String stringKey) {
-        PublicKey receivedPublicKey = null;
-        try {
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-            receivedPublicKey = keyFactory.generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(stringKey)));
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        return receivedPublicKey;
-    }
 }
