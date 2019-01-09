@@ -66,13 +66,29 @@ public class Controller {
     private void sendMessageClicked() {
         if (txtInput.getText().length() > 0) {
             String message = txtInput.getText();
-            try {
-                sendMessage(message);
-                txtChat.appendText(nickName + ": " + message + "\n");
-                txtInput.clear();
-                txtInput.requestFocus();
-            } catch (Exception e) {
-                txtChat.appendText("*** ERROR *** : Failed to send message\n");
+            if (message.startsWith(".whisper ")) {
+                message = message.substring(9);
+                String[] parts = message.split(" ", 2);
+                String target = parts[0];
+                message = parts[1];
+                try {
+                    sendWhisper(target, message);
+                    txtChat.appendText(nickName + " > " + target + ": " + message + "\n");
+                    txtInput.clear();
+                    txtInput.requestFocus();
+                } catch (Exception e) {
+                    txtChat.appendText("*** ERROR *** : Failed to send whisper\n");
+                }
+            }
+            else {
+                try {
+                    sendMessage(message);
+                    txtChat.appendText(nickName + ": " + message + "\n");
+                    txtInput.clear();
+                    txtInput.requestFocus();
+                } catch (Exception e) {
+                    txtChat.appendText("*** ERROR *** : Failed to send message\n");
+                }
             }
         }
     }
@@ -221,6 +237,10 @@ public class Controller {
 
     private void sendMessage(String message) throws Exception {
         connection.encryptMessageBroadcast(message);
+    }
+
+    private void sendWhisper(String target, String message) throws Exception {
+        connection.encryptWhisperBroadcast(target, message);
     }
 
 }
