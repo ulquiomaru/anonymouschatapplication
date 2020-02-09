@@ -9,8 +9,12 @@ import javafx.stage.Stage;
 public class Main extends Application {
 
 
+    public static void main(String[] args) {
+        launch(args);
+    }
+
     @Override
-    public void start(Stage primaryStage) throws Exception{
+    public void start(Stage primaryStage) throws Exception {
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("application.fxml"));
         Parent root = loader.load();
@@ -19,10 +23,6 @@ public class Main extends Application {
         primaryStage.setScene(new Scene(root, 800, 600));
         primaryStage.show();
 
-    }
-
-    public static void main(String[] args) {
-        launch(args);
     }
 
 //    static void setNickName(String nickname) {
@@ -42,8 +42,6 @@ public class Main extends Application {
 //    public void stop() throws Exception {
 //        connection.closeConnection();
 //    }
-
-
 
 
 }

@@ -19,13 +19,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NetworkConnection {
 
+    private final static String[] gateways = {"192.168.56.1", "192.168.57.1", "192.168.58.1"};
     private Controller controller;
     private ConnectionThread connThread = new ConnectionThread();
     private String nickName;
     private String publicKey;
     private PrivateKey privateKey;
     private boolean isGateway;
-    private final static String[] gateways = {"192.168.56.1", "192.168.57.1", "192.168.58.1"};
 
     NetworkConnection(String nickName, String publicKey, PrivateKey privateKey, boolean isGateway, Controller controller) {
         this.controller = controller;
@@ -34,6 +34,51 @@ class NetworkConnection {
         this.privateKey = privateKey;
         this.isGateway = isGateway;
         connThread.setDaemon(true);
+    }
+
+    private static String encrypt(PrivateKey privateKey, String plainText) throws Exception {
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.ENCRYPT_MODE, privateKey);
+        byte[] cipherText = cipher.doFinal(plainText.getBytes(UTF_8));
+        return Base64.getMimeEncoder().encodeToString(cipherText);
+    }
+
+    private static String encryptWhisper(PrivateKey privateKey, PublicKey publicKey, String plainText) throws Exception {
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.ENCRYPT_MODE, privateKey);
+        byte[] cipherText = cipher.doFinal(plainText.getBytes(UTF_8));
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        byte[] personalText = cipher.doFinal(cipherText);
+        return Base64.getMimeEncoder().encodeToString(personalText);
+    }
+
+    private static String decrypt(PublicKey publicKey, String cipherText) throws Exception {
+        byte[] bytes = Base64.getMimeDecoder().decode(cipherText);
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.DECRYPT_MODE, publicKey);
+        return new String(cipher.doFinal(bytes), UTF_8);
+    }
+
+    private static String decryptWhisper(PublicKey publicKey, PrivateKey privateKey, String personalText) throws Exception {
+        byte[] bytes = Base64.getMimeDecoder().decode(personalText);
+        Cipher cipher = Cipher.getInstance("RSA");
+        cipher.init(Cipher.DECRYPT_MODE, privateKey);
+        byte[] cipherText = cipher.doFinal(bytes);
+        cipher.init(Cipher.DECRYPT_MODE, publicKey);
+        return new String(cipher.doFinal(cipherText), UTF_8);
+    }
+
+    private static PublicKey stringToPublicKey(String stringKey) {
+        PublicKey receivedPublicKey = null;
+        try {
+            byte[] keyBytes = Base64.getMimeDecoder().decode(stringKey);
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            receivedPublicKey = keyFactory.generatePublic(keySpec);
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return receivedPublicKey;
     }
 
     void startConnection() {
@@ -89,73 +134,6 @@ class NetworkConnection {
         send(String.join("|", "BYE", nickName));
     }
 
-    private static String encrypt(PrivateKey privateKey, String plainText) throws Exception {
-        Cipher cipher = Cipher.getInstance("RSA");
-        cipher.init(Cipher.ENCRYPT_MODE, privateKey);
-        byte[] cipherText = cipher.doFinal(plainText.getBytes(UTF_8));
-        return Base64.getMimeEncoder().encodeToString(cipherText);
-    }
-
-    private static String encryptWhisper(PrivateKey privateKey, PublicKey publicKey, String plainText) throws Exception {
-        Cipher cipher = Cipher.getInstance("RSA");
-        cipher.init(Cipher.ENCRYPT_MODE, privateKey);
-        byte[] cipherText = cipher.doFinal(plainText.getBytes(UTF_8));
-        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
-        byte[] personalText = cipher.doFinal(cipherText);
-        return Base64.getMimeEncoder().encodeToString(personalText);
-    }
-
-    private static String decrypt(PublicKey publicKey, String cipherText) throws Exception {
-        byte[] bytes = Base64.getMimeDecoder().decode(cipherText);
-        Cipher cipher = Cipher.getInstance("RSA");
-        cipher.init(Cipher.DECRYPT_MODE, publicKey);
-        return new String(cipher.doFinal(bytes), UTF_8);
-    }
-
-    private static String decryptWhisper(PublicKey publicKey, PrivateKey privateKey, String personalText) throws Exception {
-        byte[] bytes = Base64.getMimeDecoder().decode(personalText);
-        Cipher cipher = Cipher.getInstance("RSA");
-        cipher.init(Cipher.DECRYPT_MODE, privateKey);
-        byte[] cipherText = cipher.doFinal(bytes);
-        cipher.init(Cipher.DECRYPT_MODE, publicKey);
-        return new String(cipher.doFinal(cipherText), UTF_8);
-    }
-
-    private static PublicKey stringToPublicKey(String stringKey) {
-        PublicKey receivedPublicKey = null;
-        try {
-            byte[] keyBytes = Base64.getMimeDecoder().decode(stringKey);
-            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-            receivedPublicKey = keyFactory.generatePublic(keySpec);
-        } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        return receivedPublicKey;
-    }
-
-    private class ConnectionThread extends Thread {
-        private DatagramSocket socket;
-        private HashMap<String, PublicKey> hashMap = new HashMap<>();
-
-        @Override
-        public void run() {
-            try (DatagramSocket socket = new DatagramSocket(7777)) { // new DatagramSocket(7777, InetAddress.getByName("0.0.0.0"))
-                this.socket = socket;
-                broadcastIdentity();
-                while (true) {
-                    DatagramPacket packet = new DatagramPacket(new byte[2048], 2048);
-                    socket.receive(packet);
-                    if (isGateway) forwardPacket(packet);
-                    String data = new String(packet.getData(), UTF_8);
-                    onMessageReceived(data, hashMap);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
     private void onMessageReceived(String data, HashMap<String, PublicKey> hashMap) throws Exception {
         String[] split = data.split("[|]");
         String tag = split[0];
@@ -188,12 +166,34 @@ class NetworkConnection {
                         String personalText = split[3];
                         PublicKey senderKey = hashMap.get(sender);
                         plainText = decryptWhisper(senderKey, privateKey, personalText);
-                        message = sender + " > " + target + ": " +  plainText;
+                        message = sender + " > " + target + ": " + plainText;
                         Platform.runLater(() -> controller.appendChat(message));
                     }
                     break;
                 default:
                     break;
+            }
+        }
+    }
+
+    private class ConnectionThread extends Thread {
+        private DatagramSocket socket;
+        private HashMap<String, PublicKey> hashMap = new HashMap<>();
+
+        @Override
+        public void run() {
+            try (DatagramSocket socket = new DatagramSocket(7777)) { // new DatagramSocket(7777, InetAddress.getByName("0.0.0.0"))
+                this.socket = socket;
+                broadcastIdentity();
+                while (true) {
+                    DatagramPacket packet = new DatagramPacket(new byte[2048], 2048);
+                    socket.receive(packet);
+                    if (isGateway) forwardPacket(packet);
+                    String data = new String(packet.getData(), UTF_8);
+                    onMessageReceived(data, hashMap);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }

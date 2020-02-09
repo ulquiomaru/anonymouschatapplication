@@ -30,29 +30,30 @@ public class Controller {
 
     @FXML
     TextArea txtOnlineUsers;
-
+    @FXML
+    MenuItem menuGenerateKeys;
+    @FXML
+    MenuItem menuConnect;
+    @FXML
+    MenuItem menuDisconnect;
+    @FXML
+    MenuItem menuExit;
+    @FXML
+    MenuItem menuAbout;
+    @FXML
+    Button btnSendMessage;
     @FXML
     private TextField txtInput;
 
-    @FXML
-    MenuItem menuGenerateKeys;
+    public Controller() {
+    }
 
-    @FXML
-    MenuItem menuConnect;
-
-    @FXML
-    MenuItem menuDisconnect;
-
-    @FXML
-    MenuItem menuExit;
-
-    @FXML
-    MenuItem menuAbout;
-
-    @FXML
-    Button btnSendMessage;
-
-    public Controller() { }
+    private static KeyPair buildKeyPair() throws NoSuchAlgorithmException {
+        final int keySize = 2048;
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(keySize);
+        return keyPairGenerator.genKeyPair();
+    }
 
     @FXML
     private void initialize() {
@@ -79,8 +80,7 @@ public class Controller {
                 } catch (Exception e) {
                     txtChat.appendText("*** ERROR *** : Failed to send whisper\n");
                 }
-            }
-            else {
+            } else {
                 try {
                     sendMessage(message);
                     txtChat.appendText(nickName + ": " + message + "\n");
@@ -217,13 +217,6 @@ public class Controller {
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
-    }
-
-    private static KeyPair buildKeyPair() throws NoSuchAlgorithmException {
-        final int keySize = 2048;
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-        keyPairGenerator.initialize(keySize);
-        return keyPairGenerator.genKeyPair();
     }
 
     private void connectToNetwork() {
